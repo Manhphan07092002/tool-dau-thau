@@ -42,7 +42,7 @@ def start_scheduler():
     # Start Streamlit Web Dashboard in the background
     app.log("🌐 Đang khởi động Web Dashboard (Streamlit)...")
     try:
-        subprocess.Popen(["python3", "-m", "streamlit", "run", "dashboard.py", "--server.port", "8501", "--server.headless", "true"], 
+        subprocess.Popen(["python3", "-m", "streamlit", "run", "dashboard.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"], 
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         app.log("✅ Web Dashboard đã chạy ở cổng 8501. Truy cập qua http://<IP_Server>:8501")
     except Exception as e:
