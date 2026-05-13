@@ -1,0 +1,6 @@
+__pycache__/
+bids.db
+output/
+logs/
+*.pyc
+config.json
