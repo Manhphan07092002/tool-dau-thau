@@ -2,6 +2,7 @@ import time
 import json
 import sqlite3
 import sys
+import subprocess
 from datetime import datetime
 import scraper_core
 
@@ -38,6 +39,15 @@ def start_scheduler():
     app = ConsoleApp()
     app.log("🚀 KHỞI ĐỘNG CHẾ ĐỘ TREO BOT TRÊN SERVER UBUNTU")
     
+    # Start Streamlit Web Dashboard in the background
+    app.log("🌐 Đang khởi động Web Dashboard (Streamlit)...")
+    try:
+        subprocess.Popen(["python3", "-m", "streamlit", "run", "dashboard.py", "--server.port", "8501", "--server.headless", "true"], 
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        app.log("✅ Web Dashboard đã chạy ở cổng 8501. Truy cập qua http://<IP_Server>:8501")
+    except Exception as e:
+        app.log(f"⚠️ Không thể tự động khởi động Web Dashboard: {e}")
+        
     last_run_date = None
     
     while True:
