@@ -31,6 +31,10 @@ def init_db():
                   linh_vuc TEXT, gia_du_toan TEXT, hinh_thuc TEXT, 
                   ngay_dang TEXT, dong_thau TEXT, dia_diem TEXT, 
                   link TEXT, diem_phu_hop INTEGER, ngay_quet TEXT, ai_summary TEXT)''')
+                  
+    # Config table
+    c.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
+    
     conn.commit()
     
     # Update schema if ai_summary doesn't exist

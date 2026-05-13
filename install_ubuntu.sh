@@ -17,7 +17,7 @@ sudo apt-get install -y google-chrome-stable
 
 # 3. Install Python requirements
 echo "[3/3] Cai dat thu vien Python..."
-pip3 install -r requirements.txt --break-system-packages
+pip3 install -r requirements.txt
 
 echo "=============================================="
 echo " CAI DAT HOAN TAT!"
