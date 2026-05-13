@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta
 import pandas as pd
 import requests
+import google.generativeai as genai
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -29,8 +30,16 @@ def init_db():
                  (ma_tbmt TEXT PRIMARY KEY, ten TEXT, chu_dau_tu TEXT, 
                   linh_vuc TEXT, gia_du_toan TEXT, hinh_thuc TEXT, 
                   ngay_dang TEXT, dong_thau TEXT, dia_diem TEXT, 
-                  link TEXT, diem_phu_hop INTEGER, ngay_quet TEXT)''')
+                  link TEXT, diem_phu_hop INTEGER, ngay_quet TEXT, ai_summary TEXT)''')
     conn.commit()
+    
+    # Update schema if ai_summary doesn't exist
+    try:
+        c.execute("ALTER TABLE bids_full ADD COLUMN ai_summary TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
     return conn
 
 def is_scraped(conn, ma_tbmt):
@@ -44,12 +53,12 @@ def save_scraped_full(conn, d):
     c = conn.cursor()
     c.execute('''INSERT OR IGNORE INTO bids_full 
                  (ma_tbmt, ten, chu_dau_tu, linh_vuc, gia_du_toan, hinh_thuc, 
-                  ngay_dang, dong_thau, dia_diem, link, diem_phu_hop, ngay_quet) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                  ngay_dang, dong_thau, dia_diem, link, diem_phu_hop, ngay_quet, ai_summary) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
               (d["Mã TBMT"], d["Tên gói thầu"], d["Chủ đầu tư"], d["Lĩnh vực"], 
                d["Giá dự toán"], d["Hình thức LCNT"], d["Ngày đăng"], d["Đóng thầu"], 
                d["Địa điểm"], d["Link chi tiết"], d.get("Điểm", 0), 
-               datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+               datetime.now().strftime("%Y-%m-%d %H:%M:%S"), d.get("AI Summary", "")))
     conn.commit()
 
 # ==========================================
@@ -107,6 +116,27 @@ def fetch_bid_details(driver, url, wait):
         driver.switch_to.window(driver.window_handles[0])
     return gia_du_toan, hinh_thuc
 
+def get_ai_analysis(api_key, ten, linh_vuc, chu_dau_tu):
+    if not api_key: return "Chưa cấu hình AI"
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""
+        Bạn là chuyên gia phân tích đấu thầu mảng Viễn thông / CNTT cho công ty MobiFone.
+        Đánh giá độ tiềm năng của gói thầu sau (từ 1 đến 5 sao):
+        - Tên gói: {ten}
+        - Lĩnh vực: {linh_vuc}
+        - Chủ đầu tư: {chu_dau_tu}
+        
+        Trả về ĐÚNG ĐỊNH DẠNG SAU:
+        Điểm: [Số sao]⭐
+        Phân tích: [Tóm tắt 1 câu ngắn gọn tại sao lại cho số điểm này]
+        """
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return f"Lỗi AI: {e}"
+
 def send_telegram(token, chat_id, message):
     if not token or not chat_id: return
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -139,6 +169,7 @@ def run_scraper(gui_app):
     FETCH_DETAILS = config.get("FETCH_DETAILS", False)
     TG_TOKEN = config.get("TELEGRAM_BOT_TOKEN", "").strip()
     TG_CHAT_ID = config.get("TELEGRAM_CHAT_ID", "").strip()
+    GEMINI_KEY = config.get("GEMINI_API_KEY", "").strip()
     
     kw_groups = config.get("KEYWORD_GROUPS", {})
     selected_groups = config.get("SELECTED_GROUPS", [])
@@ -235,6 +266,10 @@ def run_scraper(gui_app):
                         gia_du_toan = "N/A"
                         hinh_thuc = "N/A"
                         item_score = score_item(ten, linh_vuc, KEYWORDS)
+                        ai_summary = ""
+                        
+                        if item_score >= 3 and GEMINI_KEY:
+                            ai_summary = get_ai_analysis(GEMINI_KEY, ten, linh_vuc, chu_dau_tu)
                         
                         if FETCH_DETAILS and item_score >= 2:
                             gia_du_toan, hinh_thuc = fetch_bid_details(driver, link, wait)
@@ -244,6 +279,7 @@ def run_scraper(gui_app):
                             msg += f"📦 <b>Tên gói:</b> {ten}\n"
                             msg += f"🏢 <b>Chủ đầu tư:</b> {chu_dau_tu}\n"
                             msg += f"💰 <b>Giá dự toán:</b> {gia_du_toan}\n"
+                            msg += f"🤖 <b>AI Đánh giá:</b>\n<i>{ai_summary}</i>\n"
                             msg += f"🔗 <a href='{link}'>Xem chi tiết</a>"
                             send_telegram(TG_TOKEN, TG_CHAT_ID, msg)
 
@@ -251,7 +287,7 @@ def run_scraper(gui_app):
                             "Mã TBMT": ma_tbmt, "Tên gói thầu": ten, "Chủ đầu tư": chu_dau_tu,
                             "Lĩnh vực": linh_vuc, "Giá dự toán": gia_du_toan, "Hình thức LCNT": hinh_thuc,
                             "Ngày đăng": ngay_dang, "Đóng thầu": dong_thau, "Địa điểm": dia_diem,
-                            "Link chi tiết": link, "Điểm": item_score
+                            "Link chi tiết": link, "Điểm": item_score, "AI Summary": ai_summary
                         }
                         
                         save_scraped_full(conn, data_dict)

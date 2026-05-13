@@ -34,6 +34,7 @@ def load_db_config():
         "SELECTED_GROUPS": ["NHÓM 1: Mặc định"],
         "TELEGRAM_BOT_TOKEN": "",
         "TELEGRAM_CHAT_ID": "",
+        "GEMINI_API_KEY": "",
         "AUTO_TIME": "08:00",
         "ENABLE_AUTO": False
     }
@@ -115,6 +116,10 @@ class BiddingToolGUI:
         ttk.Label(tg_frame, text="Chat ID:").grid(row=1, column=0, sticky="w", pady=2)
         self.var_tg_chat = tk.StringVar(value=self.config.get("TELEGRAM_CHAT_ID", ""))
         ttk.Entry(tg_frame, textvariable=self.var_tg_chat, width=25).grid(row=1, column=1, sticky="w", padx=5)
+        
+        ttk.Label(tg_frame, text="Gemini API Key (AI):").grid(row=2, column=0, sticky="w", pady=2)
+        self.var_gemini_key = tk.StringVar(value=self.config.get("GEMINI_API_KEY", ""))
+        ttk.Entry(tg_frame, textvariable=self.var_gemini_key, width=25).grid(row=2, column=1, sticky="w", padx=5)
         
         # Scheduler Setup
         sch_frame = ttk.LabelFrame(mid_frame, text="Lập lịch tự động (Treo máy)", padding=10)
@@ -270,6 +275,7 @@ class BiddingToolGUI:
         self.config["FETCH_DETAILS"] = self.var_details.get()
         self.config["TELEGRAM_BOT_TOKEN"] = self.var_tg_token.get()
         self.config["TELEGRAM_CHAT_ID"] = self.var_tg_chat.get()
+        self.config["GEMINI_API_KEY"] = self.var_gemini_key.get()
         self.config["ENABLE_AUTO"] = self.var_auto_enable.get()
         self.config["AUTO_TIME"] = self.var_auto_time.get()
         
