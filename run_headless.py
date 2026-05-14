@@ -6,6 +6,9 @@ import subprocess
 from datetime import datetime
 import scraper_core
 
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 class ConsoleApp:
     def __init__(self):
         pass
