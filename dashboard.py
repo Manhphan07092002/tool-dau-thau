@@ -106,7 +106,22 @@ df = df.rename(columns={
 st.sidebar.header("🔍 CÔNG CỤ LỌC")
 
 # 1. Lọc theo Từ khóa
-search_text = st.sidebar.text_input("Tìm kiếm (Mã, Tên, Chủ đầu tư):", placeholder="Ví dụ: Mobifone...")
+search_text = st.sidebar.text_input("Tìm kiếm (Mã, Tên, CĐT):", placeholder="Ví dụ: Mobifone...")
+
+# 1.5 Lọc theo Nhà mạng & 34 Tỉnh thành (Cập nhật 2025)
+st.sidebar.markdown("**🏢 Lọc Chủ đầu tư (Telco):**")
+TELCOS = ["Tất cả", "Viettel", "MobiFone", "VNPT"]
+PROVINCES_34 = [
+    "Hà Nội", "Huế", "Quảng Ninh", "Cao Bằng", "Lạng Sơn", "Lai Châu", 
+    "Điện Biên", "Sơn La", "Thanh Hóa", "Nghệ An", "Hà Tĩnh", 
+    "Tuyên Quang", "Lào Cai", "Thái Nguyên", "Phú Thọ", "Bắc Ninh", 
+    "Hải Phòng", "Ninh Bình", "Quảng Trị", "Đà Nẵng", "Quảng Ngãi", 
+    "Gia Lai", "Khánh Hòa", "Lâm Đồng", "Đắk Lắk", "Hồ Chí Minh", 
+    "Đồng Nai", "Tây Ninh", "Cần Thơ", "Đồng Tháp", "Vĩnh Long", 
+    "Cà Mau", "An Giang", "Kiên Giang"
+]
+selected_telco = st.sidebar.selectbox("Nhà mạng:", TELCOS)
+selected_provinces = st.sidebar.multiselect("Tỉnh/Thành (34 tỉnh sáp nhập):", options=PROVINCES_34)
 
 # 2. Lọc theo Khoảng thời gian
 today_date = datetime.today().date()
@@ -164,6 +179,20 @@ filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_dt) & (filtered_df
 
 if selected_fields:
     filtered_df = filtered_df[filtered_df['Lĩnh vực'].isin(selected_fields)]
+
+if selected_telco != "Tất cả":
+    if selected_telco == "MobiFone":
+        filtered_df = filtered_df[filtered_df['Chủ đầu tư'].str.contains(r'mobi', case=False, na=False)]
+    else:
+        filtered_df = filtered_df[filtered_df['Chủ đầu tư'].str.contains(selected_telco, case=False, na=False)]
+
+if selected_provinces:
+    pattern = '|'.join(selected_provinces)
+    filtered_df = filtered_df[
+        filtered_df['Chủ đầu tư'].str.contains(pattern, case=False, na=False) |
+        filtered_df['Tên gói thầu'].str.contains(pattern, case=False, na=False) |
+        filtered_df['Địa điểm'].str.contains(pattern, case=False, na=False)
+    ]
 
 if search_text:
     search_term = search_text.lower()
