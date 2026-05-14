@@ -249,7 +249,7 @@ with tab2:
     display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số']
     if not filtered_df.empty:
         st.dataframe(
-            filtered_df[display_cols].style.background_gradient(subset=['Điểm số'], cmap='YlOrRd'),
+            filtered_df[display_cols],
             use_container_width=True, 
             hide_index=True,
             height=600
