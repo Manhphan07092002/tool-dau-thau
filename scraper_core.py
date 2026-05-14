@@ -167,21 +167,34 @@ def send_telegram_file(token, chat_id, caption, file_path):
 # CORE: QUÉT DỮ LIỆU TỪ MẠNG
 # ==========================================
 def run_scraper(gui_app):
+    # Đọc từ config.json trước làm gốc
+    json_config = {}
+    if os.path.exists("config.json"):
+        with open("config.json", "r", encoding="utf-8") as f:
+            try: json_config = json.load(f)
+            except: pass
+
     conn = init_db()
     c = conn.cursor()
     c.execute("SELECT value FROM config WHERE key='app_config'")
     row = c.fetchone()
-    config = json.loads(row[0]) if row else {}
+    db_config = json.loads(row[0]) if row else {}
+    
+    # Hợp nhất: SQLite DB có thể ghi đè (ví dụ Token, ChatID được cài từ Dashboard)
+    config = {**json_config, **db_config}
         
     LIMIT_PAGES = config.get("LIMIT_PAGES", 200)
     DAYS_BACK = config.get("DAYS_BACK", 30)
     FETCH_DETAILS = config.get("FETCH_DETAILS", True)  # Bật mặc định để luôn cào giá và ngày hết hạn
-    TG_TOKEN = config.get("TELEGRAM_BOT_TOKEN", "").strip()
+    
+    # Ưu tiên lấy token từ db_config (vì dashboard có lưu là TELEGRAM_TOKEN thay vì TELEGRAM_BOT_TOKEN)
+    TG_TOKEN = db_config.get("TELEGRAM_TOKEN", config.get("TELEGRAM_BOT_TOKEN", "")).strip()
     TG_CHAT_ID = config.get("TELEGRAM_CHAT_ID", "").strip()
     GEMINI_KEY = config.get("GEMINI_API_KEY", "").strip()
     
-    kw_groups = config.get("KEYWORD_GROUPS", {})
-    selected_groups = config.get("SELECTED_GROUPS", [])
+    # Lấy keywords từ config.json là chuẩn nhất
+    kw_groups = json_config.get("KEYWORD_GROUPS", config.get("KEYWORD_GROUPS", {}))
+    selected_groups = json_config.get("SELECTED_GROUPS", config.get("SELECTED_GROUPS", []))
     KEYWORDS = []
     for grp in selected_groups:
         if grp in kw_groups:
