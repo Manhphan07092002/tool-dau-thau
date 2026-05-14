@@ -306,23 +306,50 @@ with tab1:
     col3.markdown(f'<div class="metric-card" style="border-left-color: #F56565;"><div class="metric-title">Gói Trọng điểm (≥4⭐)</div><div class="metric-value">{top_bids}</div></div>', unsafe_allow_html=True)
     col4.markdown(f'<div class="metric-card" style="border-left-color: #9F7AEA;"><div class="metric-title">Đã được AI Phân tích</div><div class="metric-value">{ai_analyzed}</div></div>', unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    # --- NÚT BẤM XEM CHI TIẾT ---
+    if 'kpi_view' not in st.session_state:
+        st.session_state.kpi_view = None
+        
+    b1, b2, b3, b4 = st.columns(4)
+    if b1.button("👁️ Xem danh sách", key="btn_all", use_container_width=True): st.session_state.kpi_view = "all"
+    if b2.button("👁️ Xem danh sách", key="btn_pot", use_container_width=True): st.session_state.kpi_view = "pot"
+    if b3.button("👁️ Xem danh sách", key="btn_top", use_container_width=True): st.session_state.kpi_view = "top"
+    if b4.button("👁️ Xem danh sách", key="btn_ai", use_container_width=True): st.session_state.kpi_view = "ai"
     
-    if potential_bids > 0:
-        with st.expander(f"✨ Bấm để xem chi tiết {potential_bids} Gói Tiềm Năng / Trọng Điểm (≥3⭐) ở trên", expanded=False):
-            pot_df = filtered_df[filtered_df['Điểm số'] >= 3].sort_values(by='Điểm số', ascending=False)
-            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Đóng thầu', 'Điểm số', 'Link chi tiết']
-            st.dataframe(
-                pot_df[display_cols],
-                column_config={
-                    "Link chi tiết": st.column_config.LinkColumn(
-                        "Đường dẫn",
-                        help="Nhấn để mở trang web Mua sắm công",
-                        display_text="🌐 Xem Hồ Sơ"
-                    )
-                },
-                use_container_width=True, hide_index=True
-            )
+    if st.session_state.kpi_view:
+        st.markdown("---")
+        view_mapping = {
+            "all": ("Tất cả gói thầu", filtered_df),
+            "pot": ("Gói Tiềm năng (≥3⭐)", filtered_df[filtered_df['Điểm số'] >= 3].sort_values(by='Điểm số', ascending=False)),
+            "top": ("Gói Trọng điểm (≥4⭐)", filtered_df[filtered_df['Điểm số'] >= 4].sort_values(by='Điểm số', ascending=False)),
+            "ai": ("Đã được AI Phân tích", filtered_df[filtered_df['AI Đánh giá'].str.len() > 5].sort_values(by='Điểm số', ascending=False))
+        }
+        
+        title, view_df = view_mapping[st.session_state.kpi_view]
+        
+        c_title, c_close = st.columns([8, 2])
+        with c_title:
+            st.subheader(f"📑 Bảng dữ liệu: {title} ({len(view_df)} gói)")
+        with c_close:
+            if st.button("❌ Đóng bảng này", use_container_width=True):
+                st.session_state.kpi_view = None
+                st.rerun()
+                
+        display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Đóng thầu', 'Điểm số', 'Link chi tiết']
+        if st.session_state.kpi_view == "ai" and "AI Đánh giá" in view_df.columns:
+            display_cols.append("AI Đánh giá")
+            
+        st.dataframe(
+            view_df[display_cols],
+            column_config={
+                "Link chi tiết": st.column_config.LinkColumn(
+                    "Đường dẫn",
+                    help="Nhấn để mở trang web Mua sắm công",
+                    display_text="🌐 Xem Hồ Sơ"
+                )
+            },
+            use_container_width=True, hide_index=True
+        )
             
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -470,24 +497,23 @@ with tab3:
             # Chia thành 2 cột cho đẹp
             col_l, col_r = st.columns(2)
             
-            for idx, row in enumerate(ai_df.itertuples()):
+            for idx, (_, row) in enumerate(ai_df.iterrows()):
                 # Phân bổ chéo cột trái phải
                 target_col = col_l if idx % 2 == 0 else col_r
                 
                 with target_col:
-                    row_dict = row._asdict()
-                    score = row_dict.get('Điểm_số', 0)
+                    score = row.get('Điểm số', 0)
                     stars = "⭐" * int(score) if score > 0 else ""
                     
-                    with st.expander(f"{stars} [{row_dict['Mã_TBMT']}] - {row_dict['Tên_gói_thầu'][:60]}..."):
-                        st.markdown(f"**🏢 Chủ đầu tư:** {row_dict['Chủ_đầu_tư']}")
-                        st.markdown(f"**💰 Giá dự toán:** {row_dict['Giá_dự_toán']}")
-                        st.markdown(f"**📅 Đóng thầu:** {row_dict['Đóng_thầu']}")
+                    with st.expander(f"{stars} [{row['Mã TBMT']}] - {str(row['Tên gói thầu'])[:60]}..."):
+                        st.markdown(f"**🏢 Chủ đầu tư:** {row['Chủ đầu tư']}")
+                        st.markdown(f"**💰 Giá dự toán:** {row['Giá dự toán']}")
+                        st.markdown(f"**📅 Đóng thầu:** {row['Đóng thầu']}")
                         
                         st.markdown("---")
-                        st.markdown(f"🤖 **AI Nhận xét:**\n> {row_dict['AI_Đánh_giá']}")
+                        st.markdown(f"🤖 **AI Nhận xét:**\n> {row['AI Đánh giá']}")
                         
-                        st.markdown(f"[🔗 Nhấn vào đây để xem Hồ sơ gốc trên Mua sắm công]({row_dict['Link_chi_tiết']})")
+                        st.markdown(f"[🔗 Nhấn vào đây để xem Hồ sơ gốc trên Mua sắm công]({row['Link chi tiết']})")
 
 with tab4:
     st.subheader("🕵️ Hồ sơ Năng lực / Phân tích Đối thủ")
