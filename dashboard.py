@@ -109,12 +109,24 @@ st.sidebar.header("🔍 CÔNG CỤ LỌC")
 search_text = st.sidebar.text_input("Tìm kiếm (Mã, Tên, Chủ đầu tư):", placeholder="Ví dụ: Mobifone...")
 
 # 2. Lọc theo Khoảng thời gian
+today_date = datetime.today().date()
 min_dt = df['Ngày_Date'].min()
 max_dt = df['Ngày_Date'].max()
-min_date = min_dt.date() if pd.notna(min_dt) else datetime.today().date()
-max_date = max_dt.date() if pd.notna(max_dt) else datetime.today().date()
 
-date_range = st.sidebar.date_input("Thời gian đăng tải:", [min_date, max_date], min_value=min_date, max_value=max_date)
+min_date = min_dt.date() if pd.notna(min_dt) else today_date
+max_date = max_dt.date() if pd.notna(max_dt) else today_date
+
+# Fix lỗi parse ngày của Pandas nếu cào trúng dữ liệu rác (Ví dụ năm 6051)
+if min_date.year < 2020: min_date = datetime(2020, 1, 1).date()
+if max_date.year > today_date.year + 1: max_date = today_date
+if min_date > max_date: min_date = max_date
+
+date_range = st.sidebar.date_input(
+    "Thời gian đăng tải:", 
+    value=[min_date, max_date], 
+    min_value=datetime(2020, 1, 1).date(), 
+    max_value=today_date + timedelta(days=30)
+)
 
 # 3. Lọc theo Điểm số
 min_score = st.sidebar.slider("Độ tiềm năng (Từ bao nhiêu sao):", 0, 5, 0)
