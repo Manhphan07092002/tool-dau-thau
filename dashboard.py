@@ -92,21 +92,28 @@ def load_data():
             
         df['Giá_Số'] = df['gia_du_toan'].apply(parse_price)
         
-        # Phân loại nhóm hàng theo config
+        # Phân loại nhóm hàng theo config - Tối ưu hóa bằng Vectorization
         kw_groups = load_keyword_groups()
         if kw_groups:
-            def classify_group(row):
-                ten = str(row.get('ten', '')).lower()
-                lv = str(row.get('linh_vuc', '')).lower()
-                text = f"{ten} {lv}"
-                matched = []
-                for grp, kws in kw_groups.items():
-                    if any(kw.lower() in text for kw in kws):
-                        # Lấy tên nhóm ngắn gọn (ví dụ: "NHÓM 1: Viễn thông" -> "Viễn thông")
-                        short_name = grp.split(":", 1)[1].strip() if ":" in grp else grp
-                        matched.append(short_name)
-                return ", ".join(matched) if matched else "Khác"
-            df['Nhóm hàng'] = df.apply(classify_group, axis=1)
+            df['Nhóm hàng'] = ""
+            search_text = (df['ten'].fillna('') + ' ' + df['linh_vuc'].fillna('')).str.lower()
+            
+            for grp, kws in kw_groups.items():
+                if not kws: continue
+                short_name = grp.split(":", 1)[1].strip() if ":" in grp else grp
+                pattern = '|'.join([re.escape(kw.lower()) for kw in kws])
+                
+                # Tìm các dòng match pattern này bằng C engine
+                mask = search_text.str.contains(pattern, case=False, na=False, regex=True)
+                
+                # Thêm short_name vào các dòng match (xử lý dấu phẩy)
+                mask_empty = mask & (df['Nhóm hàng'] == "")
+                mask_not_empty = mask & (df['Nhóm hàng'] != "")
+                
+                df.loc[mask_empty, 'Nhóm hàng'] = short_name
+                df.loc[mask_not_empty, 'Nhóm hàng'] += ", " + short_name
+                
+            df.loc[df['Nhóm hàng'] == "", 'Nhóm hàng'] = "Khác"
         else:
             df['Nhóm hàng'] = "Khác"
         
