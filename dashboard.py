@@ -206,7 +206,7 @@ with tab1:
             fig_line = px.area(date_counts, x='Ngày', y='Số lượng', template="plotly_dark", 
                               color_discrete_sequence=['#00C4B5'])
             fig_line.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=350)
-            st.plotly_chart(fig_line, use_container_width=True)
+            sel_line = st.plotly_chart(fig_line, use_container_width=True, on_select="rerun")
             
         with c2:
             # Phân bổ Lĩnh vực
@@ -216,7 +216,7 @@ with tab1:
             fig_pie = px.pie(field_counts, values='Số lượng', names='Lĩnh vực', hole=0.4, 
                              template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel)
             fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=350)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            sel_pie = st.plotly_chart(fig_pie, use_container_width=True, on_select="rerun")
             
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -228,7 +228,59 @@ with tab1:
         fig_bar = px.bar(investor_counts, x='Số lượng', y='Chủ đầu tư', orientation='h',
                          template="plotly_dark", text_auto=True, color_discrete_sequence=['#F6AD55'])
         fig_bar.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=400)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        sel_bar = st.plotly_chart(fig_bar, use_container_width=True, on_select="rerun")
+        
+        # --- XỬ LÝ SỰ KIỆN CLICK BIỂU ĐỒ ---
+        def get_pt(sel):
+            try:
+                pts = sel.get("selection", {}).get("points", [])
+                return pts[0] if pts else {}
+            except:
+                try: return sel.selection.points[0] if getattr(sel, 'selection', None) and sel.selection.points else {}
+                except: return {}
+
+        pt_line = get_pt(sel_line)
+        pt_pie = get_pt(sel_pie)
+        pt_bar = get_pt(sel_bar)
+        
+        click_df = None
+        filter_title = ""
+        
+        if pt_line and 'x' in pt_line:
+            # Click Area chart
+            clicked_date = pt_line['x']
+            filter_title = f"Gói thầu đăng ngày: {clicked_date}"
+            # Cần convert clicked_date string về date object để so sánh với Ngày_Date (datetime)
+            # Tuy nhiên, trong Pandas, so sánh chuỗi YYYY-MM-DD với datetime cũng hoạt động
+            click_df = filtered_df[filtered_df['Ngày_Date'].astype(str).str.startswith(clicked_date)]
+            
+        elif pt_pie and ('label' in pt_pie or 'x' in pt_pie):
+            # Click Pie chart
+            clicked_field = pt_pie.get('label', pt_pie.get('x'))
+            filter_title = f"Gói thầu mảng: {clicked_field}"
+            click_df = filtered_df[filtered_df['Lĩnh vực'] == clicked_field]
+            
+        elif pt_bar and 'y' in pt_bar:
+            # Click Bar chart
+            clicked_investor = pt_bar['y']
+            filter_title = f"Gói thầu của Chủ đầu tư: {clicked_investor}"
+            click_df = filtered_df[filtered_df['Chủ đầu tư'] == clicked_investor]
+            
+        if click_df is not None and not click_df.empty:
+            st.markdown("---")
+            st.subheader(f"👇 Bảng dữ liệu tương tác: {filter_title}")
+            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+            st.dataframe(
+                click_df[display_cols],
+                column_config={
+                    "Link chi tiết": st.column_config.LinkColumn(
+                        "Đường dẫn",
+                        help="Nhấn để mở trang web Mua sắm công",
+                        display_text="🌐 Xem Hồ Sơ"
+                    )
+                },
+                use_container_width=True, hide_index=True
+            )
     else:
         st.info("Không có dữ liệu để vẽ biểu đồ theo bộ lọc hiện tại.")
 
