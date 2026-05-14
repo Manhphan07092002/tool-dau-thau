@@ -56,8 +56,8 @@ def load_data():
     conn = sqlite3.connect("bids.db")
     try:
         df = pd.read_sql_query("SELECT * FROM bids_full", conn)
-        # Parse Ngày đăng to datetime for filtering
-        df['Ngày_Date'] = pd.to_datetime(df['ngay_dang'], format='%d/%m/%Y %H:%M', errors='coerce')
+        # Parse Ngày đăng to datetime for filtering (Bỏ format cứng để Pandas tự linh hoạt)
+        df['Ngày_Date'] = pd.to_datetime(df['ngay_dang'], dayfirst=True, errors='coerce')
         # Xóa các dòng rỗng
         df = df.dropna(subset=['ma_tbmt'])
         
