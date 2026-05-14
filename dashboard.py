@@ -514,8 +514,12 @@ with tab5:
         
         submitted = st.form_submit_button("LƯU CẤU HÌNH", use_container_width=True, type="primary")
         if submitted:
+            cleaned_token = telegram_token.strip()
+            if cleaned_token.lower().startswith("bot"):
+                cleaned_token = cleaned_token[3:]
+                
             new_config = {
-                "TELEGRAM_TOKEN": telegram_token.strip(),
+                "TELEGRAM_TOKEN": cleaned_token,
                 "TELEGRAM_CHAT_ID": telegram_chat_id.strip(),
                 "GEMINI_API_KEY": gemini_api_key.strip()
             }

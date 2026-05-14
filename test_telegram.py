@@ -24,6 +24,8 @@ def test_telegram():
             
         config = json.loads(row[0])
         token = config.get("TELEGRAM_TOKEN", "").strip()
+        if token.lower().startswith("bot"):
+            token = token[3:]
         chat_id = str(config.get("TELEGRAM_CHAT_ID", "")).strip()
         
         if not token or not chat_id:
