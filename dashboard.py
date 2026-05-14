@@ -49,7 +49,21 @@ st.markdown("""
         border-bottom: 3px solid #00C4B5;
     }
 </style>
+</style>
 """, unsafe_allow_html=True)
+
+@st.cache_data
+def load_keyword_groups():
+    import json
+    import os
+    if os.path.exists("config.json"):
+        with open("config.json", "r", encoding="utf-8") as f:
+            try:
+                config = json.load(f)
+                return config.get("KEYWORD_GROUPS", {})
+            except:
+                pass
+    return {}
 
 @st.cache_data(ttl=300) # Cache 5 phút
 def load_data():
@@ -77,6 +91,24 @@ def load_data():
             except: return 0
             
         df['Giá_Số'] = df['gia_du_toan'].apply(parse_price)
+        
+        # Phân loại nhóm hàng theo config
+        kw_groups = load_keyword_groups()
+        if kw_groups:
+            def classify_group(row):
+                ten = str(row.get('ten', '')).lower()
+                lv = str(row.get('linh_vuc', '')).lower()
+                text = f"{ten} {lv}"
+                matched = []
+                for grp, kws in kw_groups.items():
+                    if any(kw.lower() in text for kw in kws):
+                        # Lấy tên nhóm ngắn gọn (ví dụ: "NHÓM 1: Viễn thông" -> "Viễn thông")
+                        short_name = grp.split(":", 1)[1].strip() if ":" in grp else grp
+                        matched.append(short_name)
+                return ", ".join(matched) if matched else "Khác"
+            df['Nhóm hàng'] = df.apply(classify_group, axis=1)
+        else:
+            df['Nhóm hàng'] = "Khác"
         
     except Exception as e:
         df = pd.DataFrame()
@@ -129,6 +161,8 @@ df = df.rename(columns={
     'ngay_dang': 'Ngày đăng', 'dong_thau': 'Đóng thầu', 'dia_diem': 'Địa điểm',
     'link': 'Link chi tiết', 'diem_phu_hop': 'Điểm số', 'ai_summary': 'AI Đánh giá'
 })
+
+kw_groups_dict = load_keyword_groups()
 
 # ==========================================
 # SIDEBAR LỌC DỮ LIỆU
@@ -193,9 +227,16 @@ else:
 # 3. Lọc theo Điểm số
 min_score = st.sidebar.slider("Độ tiềm năng (Từ bao nhiêu sao):", 0, 5, 0)
 
-# 4. Lọc theo Lĩnh vực
+# 4. Lọc theo Nhóm thiết bị (Từ config.json)
+if kw_groups_dict:
+    st.sidebar.markdown("**📦 Lọc theo Nhóm thiết bị:**")
+    all_groups = [grp.split(":", 1)[1].strip() if ":" in grp else grp for grp in kw_groups_dict.keys()]
+    all_groups.append("Khác")
+    selected_groups_filter = st.sidebar.multiselect("Nhóm hàng:", options=all_groups, default=[])
+
+# 5. Lọc theo Lĩnh vực
 all_fields = df['Lĩnh vực'].dropna().unique().tolist()
-selected_fields = st.sidebar.multiselect("Lĩnh vực:", options=all_fields, default=all_fields)
+selected_fields = st.sidebar.multiselect("Lĩnh vực (Gốc):", options=all_fields, default=all_fields)
 
 st.sidebar.divider()
 st.sidebar.caption("💡 Mẹo: Nhấn 'R' trên bàn phím để tải lại dữ liệu mới nhất.")
@@ -209,6 +250,11 @@ filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_dt) & (filtered_df
 
 if selected_fields:
     filtered_df = filtered_df[filtered_df['Lĩnh vực'].isin(selected_fields)]
+
+if kw_groups_dict and selected_groups_filter:
+    # Check if any of the selected groups is in the "Nhóm hàng" column
+    pattern = '|'.join([re.escape(grp) for grp in selected_groups_filter])
+    filtered_df = filtered_df[filtered_df['Nhóm hàng'].str.contains(pattern, case=False, na=False)]
 
 if selected_telco != "Tất cả":
     if selected_telco == "MobiFone":
@@ -328,7 +374,7 @@ with tab1:
         if click_df is not None and not click_df.empty:
             st.markdown("---")
             st.subheader(f"👇 Bảng dữ liệu tương tác: {filter_title}")
-            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
             st.dataframe(
                 click_df[display_cols],
                 column_config={
@@ -357,7 +403,7 @@ with tab2:
         st.download_button("📥 Tải Xuống CSV", data=csv, file_name="du_lieu_dau_thau.csv", mime="text/csv", use_container_width=True)
     
     # Bảng dữ liệu tương tác
-    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
     if not filtered_df.empty:
         st.dataframe(
             filtered_df[display_cols],
