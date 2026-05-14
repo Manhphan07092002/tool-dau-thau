@@ -308,6 +308,24 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
+    if potential_bids > 0:
+        with st.expander(f"✨ Bấm để xem chi tiết {potential_bids} Gói Tiềm Năng / Trọng Điểm (≥3⭐) ở trên", expanded=False):
+            pot_df = filtered_df[filtered_df['Điểm số'] >= 3].sort_values(by='Điểm số', ascending=False)
+            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+            st.dataframe(
+                pot_df[display_cols],
+                column_config={
+                    "Link chi tiết": st.column_config.LinkColumn(
+                        "Đường dẫn",
+                        help="Nhấn để mở trang web Mua sắm công",
+                        display_text="🌐 Xem Hồ Sơ"
+                    )
+                },
+                use_container_width=True, hide_index=True
+            )
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     # --- Biểu đồ ---
     if not filtered_df.empty:
         c1, c2 = st.columns([6, 4])
