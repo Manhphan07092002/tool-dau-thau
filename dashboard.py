@@ -416,11 +416,19 @@ with tab1:
             # Tuy nhiên, trong Pandas, so sánh chuỗi YYYY-MM-DD với datetime cũng hoạt động
             click_df = filtered_df[filtered_df['Ngày_Date'].astype(str).str.startswith(clicked_date)]
             
-        elif pt_pie and ('label' in pt_pie or 'x' in pt_pie):
+        elif pt_pie:
             # Click Pie chart
-            clicked_field = pt_pie.get('label', pt_pie.get('x'))
-            filter_title = f"Gói thầu mảng: {clicked_field}"
-            click_df = filtered_df[filtered_df['Lĩnh vực'] == clicked_field]
+            clicked_field = None
+            if 'label' in pt_pie: 
+                clicked_field = pt_pie['label']
+            elif 'pointIndex' in pt_pie:
+                try: 
+                    clicked_field = field_counts.iloc[pt_pie['pointIndex']]['Lĩnh vực']
+                except: pass
+                
+            if clicked_field:
+                filter_title = f"Gói thầu mảng: {clicked_field}"
+                click_df = filtered_df[filtered_df['Lĩnh vực'] == clicked_field]
             
         elif pt_bar and 'y' in pt_bar:
             # Click Bar chart
