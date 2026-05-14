@@ -1,26 +1,76 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Đấu Thầu Analytics", page_icon="📊", layout="wide")
+# Cấu hình trang
+st.set_page_config(page_title="Đấu Thầu Analytics Pro", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
 
+# Thêm CSS tùy chỉnh cho giao diện đẹp hơn
+st.markdown("""
+<style>
+    .metric-card {
+        background-color: #1E1E1E;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        border-left: 5px solid #00C4B5;
+        color: white;
+    }
+    .metric-title {
+        font-size: 14px;
+        color: #A0AEC0;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    .metric-value {
+        font-size: 32px;
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border-radius: 4px 4px 0px 0px;
+        gap: 10px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: rgba(0, 196, 181, 0.1);
+        border-bottom: 3px solid #00C4B5;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+@st.cache_data(ttl=300) # Cache 5 phút
 def load_data():
     conn = sqlite3.connect("bids.db")
     try:
         df = pd.read_sql_query("SELECT * FROM bids_full", conn)
-    except:
+        # Parse Ngày đăng to Date object for filtering
+        df['Ngày_Date'] = pd.to_datetime(df['ngay_dang'], format='%d/%m/%Y %H:%M', errors='coerce').dt.date
+        # Xóa các dòng rỗng
+        df = df.dropna(subset=['ma_tbmt'])
+    except Exception as e:
         df = pd.DataFrame()
     conn.close()
     return df
 
-st.title("📊 Bảng Điều Khiển Đấu Thầu (Data Warehouse)")
+st.title("📈 Báo cáo Trí tuệ Đấu Thầu (BI Dashboard)")
+st.markdown("Hệ thống tự động phân tích dữ liệu đấu thầu trực tuyến kết hợp Google Gemini AI.")
 
 df = load_data()
 
 if df.empty:
-    st.warning("CSDL hiện chưa có dữ liệu. Vui lòng chạy Tool bằng giao diện hoặc Server để cào dữ liệu trước.")
+    st.warning("CSDL hiện chưa có dữ liệu. Vui lòng đợi tiến trình cào dữ liệu hoàn tất.")
     st.stop()
 
 # Đổi tên cột cho đẹp
@@ -31,59 +81,170 @@ df = df.rename(columns={
     'link': 'Link chi tiết', 'diem_phu_hop': 'Điểm số', 'ai_summary': 'AI Đánh giá'
 })
 
-# Tính KPIs
-total_bids = len(df)
-potential_bids = len(df[df['Điểm số'] >= 3])
-top_bids = len(df[df['Điểm số'] >= 4])
+# ==========================================
+# SIDEBAR LỌC DỮ LIỆU
+# ==========================================
+st.sidebar.header("🔍 CÔNG CỤ LỌC")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Tổng số gói thầu", total_bids)
-col2.metric("Gói thầu liên quan (>=3⭐)", potential_bids)
-col3.metric("Gói thầu TIỀM NĂNG (>=4⭐)", top_bids)
+# 1. Lọc theo Từ khóa
+search_text = st.sidebar.text_input("Tìm kiếm (Mã, Tên, Chủ đầu tư):", placeholder="Ví dụ: Mobifone...")
 
-st.divider()
+# 2. Lọc theo Khoảng thời gian
+min_date = df['Ngày_Date'].min()
+max_date = df['Ngày_Date'].max()
+if pd.isna(min_date): min_date = datetime.today().date()
+if pd.isna(max_date): max_date = datetime.today().date()
 
-# Sidebar Lọc Dữ Liệu
-st.sidebar.header("🔍 Bộ Lọc")
-min_score = st.sidebar.slider("Chỉ hiển thị gói có điểm từ:", 0, 5, 0)
-search_text = st.sidebar.text_input("Tìm kiếm (Tên gói, Chủ đầu tư):")
+date_range = st.sidebar.date_input("Thời gian đăng tải:", [min_date, max_date], min_value=min_date, max_value=max_date)
 
-# Xử lý lọc
+# 3. Lọc theo Điểm số
+min_score = st.sidebar.slider("Độ tiềm năng (Từ bao nhiêu sao):", 0, 5, 0)
+
+# 4. Lọc theo Lĩnh vực
+all_fields = df['Lĩnh vực'].dropna().unique().tolist()
+selected_fields = st.sidebar.multiselect("Lĩnh vực:", options=all_fields, default=all_fields)
+
+st.sidebar.divider()
+st.sidebar.caption("💡 Mẹo: Nhấn 'R' trên bàn phím để tải lại dữ liệu mới nhất.")
+
+# Xử lý lọc Dataframe
 filtered_df = df[df['Điểm số'] >= min_score]
+
+if len(date_range) == 2:
+    start_d, end_d = date_range
+    filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_d) & (filtered_df['Ngày_Date'] <= end_d)]
+
+if selected_fields:
+    filtered_df = filtered_df[filtered_df['Lĩnh vực'].isin(selected_fields)]
+
 if search_text:
+    search_term = search_text.lower()
     filtered_df = filtered_df[
-        filtered_df['Tên gói thầu'].str.contains(search_text, case=False, na=False) |
-        filtered_df['Chủ đầu tư'].str.contains(search_text, case=False, na=False)
+        filtered_df['Tên gói thầu'].str.lower().str.contains(search_term, na=False) |
+        filtered_df['Chủ đầu tư'].str.lower().str.contains(search_term, na=False) |
+        filtered_df['Mã TBMT'].str.lower().str.contains(search_term, na=False)
     ]
 
-# Đồ thị Bar chart
-try:
-    date_counts = filtered_df['Ngày đăng'].str.extract(r'(\d{2}/\d{2}/\d{4})')[0].value_counts().reset_index()
-    date_counts.columns = ['Ngày', 'Số lượng']
-    date_counts = date_counts.sort_values('Ngày')
-    if not date_counts.empty:
-        fig = px.bar(date_counts, x='Ngày', y='Số lượng', title="Lưu lượng gói thầu theo ngày đăng", text_auto=True)
-        st.plotly_chart(fig, use_container_width=True)
-except Exception as e:
-    pass
+# ==========================================
+# GIAO DIỆN CHÍNH
+# ==========================================
+tab1, tab2, tab3 = st.tabs(["📊 TỔNG QUAN", "🔍 DỮ LIỆU GÓI THẦU", "🤖 AI TRỢ LÝ"])
 
-st.subheader(f"📑 Danh sách gói thầu ({len(filtered_df)} kết quả)")
-
-# Hiển thị dataframe
-display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Giá dự toán', 'Ngày đăng', 'Điểm số']
-st.dataframe(filtered_df[display_cols], use_container_width=True, hide_index=True)
-
-st.subheader("🧠 Chi tiết AI Đánh Giá (Dành cho gói >=3⭐)")
-if 'AI Đánh giá' not in filtered_df.columns:
-    st.info("Chưa có dữ liệu AI. Hãy cập nhật Gemini API Key và quét lại.")
-else:
-    ai_df = filtered_df[filtered_df['AI Đánh giá'].notna() & (filtered_df['AI Đánh giá'] != "")]
-    if ai_df.empty:
-        st.info("Không có dữ liệu AI cho các gói thầu đang lọc.")
+with tab1:
+    # --- KPIs ---
+    col1, col2, col3, col4 = st.columns(4)
+    total_bids = len(filtered_df)
+    potential_bids = len(filtered_df[filtered_df['Điểm số'] >= 3])
+    top_bids = len(filtered_df[filtered_df['Điểm số'] >= 4])
+    ai_analyzed = len(filtered_df[filtered_df['AI Đánh giá'].str.len() > 5])
+    
+    col1.markdown(f'<div class="metric-card"><div class="metric-title">Tổng số Gói thầu</div><div class="metric-value">{total_bids}</div></div>', unsafe_allow_html=True)
+    col2.markdown(f'<div class="metric-card" style="border-left-color: #F6AD55;"><div class="metric-title">Gói Tiềm năng (≥3⭐)</div><div class="metric-value">{potential_bids}</div></div>', unsafe_allow_html=True)
+    col3.markdown(f'<div class="metric-card" style="border-left-color: #F56565;"><div class="metric-title">Gói Trọng điểm (≥4⭐)</div><div class="metric-value">{top_bids}</div></div>', unsafe_allow_html=True)
+    col4.markdown(f'<div class="metric-card" style="border-left-color: #9F7AEA;"><div class="metric-title">Đã được AI Phân tích</div><div class="metric-value">{ai_analyzed}</div></div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- Biểu đồ ---
+    if not filtered_df.empty:
+        c1, c2 = st.columns([6, 4])
+        
+        with c1:
+            # Lưu lượng đăng tải
+            st.subheader("Xu hướng Đăng tải")
+            date_counts = filtered_df['Ngày_Date'].value_counts().reset_index()
+            date_counts.columns = ['Ngày', 'Số lượng']
+            date_counts = date_counts.sort_values('Ngày')
+            fig_line = px.area(date_counts, x='Ngày', y='Số lượng', template="plotly_dark", 
+                              color_discrete_sequence=['#00C4B5'])
+            fig_line.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=350)
+            st.plotly_chart(fig_line, use_container_width=True)
+            
+        with c2:
+            # Phân bổ Lĩnh vực
+            st.subheader("Cơ cấu Lĩnh vực")
+            field_counts = filtered_df['Lĩnh vực'].value_counts().reset_index()
+            field_counts.columns = ['Lĩnh vực', 'Số lượng']
+            fig_pie = px.pie(field_counts, values='Số lượng', names='Lĩnh vực', hole=0.4, 
+                             template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=350)
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Bảng xếp hạng Chủ đầu tư
+        st.subheader("Top 10 Chủ đầu tư Sôi động nhất")
+        investor_counts = filtered_df['Chủ đầu tư'].value_counts().head(10).reset_index()
+        investor_counts.columns = ['Chủ đầu tư', 'Số lượng']
+        investor_counts = investor_counts.sort_values('Số lượng', ascending=True)
+        fig_bar = px.bar(investor_counts, x='Số lượng', y='Chủ đầu tư', orientation='h',
+                         template="plotly_dark", text_auto=True, color_discrete_sequence=['#F6AD55'])
+        fig_bar.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=400)
+        st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        for idx, row in ai_df.iterrows():
-            with st.expander(f"{row['Điểm số']}⭐ - {row['Tên gói thầu']} (Chủ đầu tư: {row['Chủ đầu tư']})"):
-                st.write(f"**💰 Giá dự toán:** {row['Giá dự toán']}")
-                st.write(f"**📅 Ngày đăng:** {row['Ngày đăng']}")
-                st.info(f"**🤖 AI Nhận xét:**\n\n{row['AI Đánh giá']}")
-                st.markdown(f"[🔗 Xem chi tiết trên Mua sắm công]({row['Link chi tiết']})")
+        st.info("Không có dữ liệu để vẽ biểu đồ theo bộ lọc hiện tại.")
+
+with tab2:
+    col_a, col_b = st.columns([8, 2])
+    with col_a:
+        st.subheader(f"Danh sách chi tiết ({len(filtered_df)} gói)")
+    with col_b:
+        # Nút xuất CSV
+        @st.cache_data
+        def convert_df(df):
+            return df.to_csv(index=False).encode('utf-8')
+        
+        csv = convert_df(filtered_df.drop(columns=['Ngày_Date']))
+        st.download_button("📥 Tải Xuống CSV", data=csv, file_name="du_lieu_dau_thau.csv", mime="text/csv", use_container_width=True)
+    
+    # Bảng dữ liệu tương tác
+    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số']
+    if not filtered_df.empty:
+        st.dataframe(
+            filtered_df[display_cols].style.background_gradient(subset=['Điểm số'], cmap='YlOrRd'),
+            use_container_width=True, 
+            hide_index=True,
+            height=600
+        )
+    else:
+        st.info("Không tìm thấy kết quả nào.")
+
+with tab3:
+    st.subheader("Báo cáo Phân tích từ Google Gemini 🧠")
+    st.markdown("Chỉ hiển thị các gói thầu tiềm năng có điểm số cao và đã được AI đọc hiểu hồ sơ.")
+    
+    if 'AI Đánh giá' not in filtered_df.columns:
+        st.warning("Hệ thống chưa có dữ liệu AI. Hãy kiểm tra cấu hình Gemini API Key.")
+    else:
+        # Chỉ lấy gói có AI
+        ai_df = filtered_df[filtered_df['AI Đánh giá'].notna() & (filtered_df['AI Đánh giá'] != "")]
+        
+        if ai_df.empty:
+            st.info("Không có nhận xét AI nào cho dữ liệu đang lọc.")
+        else:
+            # Sắp xếp theo điểm số cao nhất lên đầu
+            ai_df = ai_df.sort_values(by='Điểm số', ascending=False)
+            
+            # Chia thành 2 cột cho đẹp
+            col_l, col_r = st.columns(2)
+            
+            for idx, row in enumerate(ai_df.itertuples()):
+                # Phân bổ chéo cột trái phải
+                target_col = col_l if idx % 2 == 0 else col_r
+                
+                with target_col:
+                    stars = "⭐" * int(row._12) # row._12 is Điểm số (index varies, better to use getattr)
+                    # Use index via dictionary to be safe
+                    row_dict = row._asdict()
+                    score = row_dict['Điểm_số']
+                    stars = "⭐" * int(score) if score > 0 else ""
+                    
+                    with st.expander(f"{stars} [{row_dict['Mã_TBMT']}] - {row_dict['Tên_gói_thầu'][:60]}..."):
+                        st.markdown(f"**🏢 Chủ đầu tư:** {row_dict['Chủ_đầu_tư']}")
+                        st.markdown(f"**💰 Giá dự toán:** {row_dict['Giá_dự_toán']}")
+                        st.markdown(f"**📅 Đóng thầu:** {row_dict['Đóng_thầu']}")
+                        
+                        st.markdown("---")
+                        st.markdown(f"🤖 **AI Nhận xét:**\n> {row_dict['AI_Đánh_giá']}")
+                        
+                        st.markdown(f"[🔗 Nhấn vào đây để xem Hồ sơ gốc trên Mua sắm công]({row_dict['Link_chi_tiết']})")
