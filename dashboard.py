@@ -246,10 +246,17 @@ with tab2:
         st.download_button("📥 Tải Xuống CSV", data=csv, file_name="du_lieu_dau_thau.csv", mime="text/csv", use_container_width=True)
     
     # Bảng dữ liệu tương tác
-    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số']
+    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
     if not filtered_df.empty:
         st.dataframe(
             filtered_df[display_cols],
+            column_config={
+                "Link chi tiết": st.column_config.LinkColumn(
+                    "Đường dẫn",
+                    help="Nhấn để mở trang web Mua sắm công",
+                    display_text="🌐 Xem Hồ Sơ"
+                )
+            },
             use_container_width=True, 
             hide_index=True,
             height=600
@@ -361,6 +368,13 @@ with tab4:
                 
             st.subheader("Lịch sử Đấu thầu chi tiết")
             st.dataframe(
-                comp_df[['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng']],
+                comp_df[['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Link chi tiết']],
+                column_config={
+                    "Link chi tiết": st.column_config.LinkColumn(
+                        "Đường dẫn",
+                        help="Nhấn để mở trang web Mua sắm công",
+                        display_text="🌐 Xem Hồ Sơ"
+                    )
+                },
                 use_container_width=True, hide_index=True
             )
