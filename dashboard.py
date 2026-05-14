@@ -83,6 +83,36 @@ def load_data():
     conn.close()
     return df
 
+def load_app_config():
+    import json
+    conn = sqlite3.connect("bids.db")
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
+    c.execute("SELECT value FROM config WHERE key='app_config'")
+    row = c.fetchone()
+    conn.close()
+    if row:
+        try: return json.loads(row[0])
+        except: return {}
+    return {}
+
+def save_app_config(config_dict):
+    import json
+    conn = sqlite3.connect("bids.db")
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
+    c.execute("SELECT value FROM config WHERE key='app_config'")
+    row = c.fetchone()
+    old_config = {}
+    if row:
+        try: old_config = json.loads(row[0])
+        except: pass
+    
+    old_config.update(config_dict)
+    c.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_config', ?)", (json.dumps(old_config),))
+    conn.commit()
+    conn.close()
+
 st.title("📈 Báo cáo Trí tuệ Đấu Thầu (BI Dashboard)")
 st.markdown("Hệ thống tự động phân tích dữ liệu đấu thầu trực tuyến kết hợp Google Gemini AI.")
 
@@ -205,7 +235,7 @@ if search_text:
 # ==========================================
 # GIAO DIỆN CHÍNH
 # ==========================================
-tab1, tab2, tab3, tab4 = st.tabs(["📊 TỔNG QUAN", "🔍 DỮ LIỆU GÓI THẦU", "🤖 AI TRỢ LÝ", "🕵️ TÌNH BÁO ĐỐI THỦ"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 TỔNG QUAN", "🔍 DỮ LIỆU GÓI THẦU", "🤖 AI TRỢ LÝ", "🕵️ TÌNH BÁO ĐỐI THỦ", "⚙️ CÀI ĐẶT HỆ THỐNG"])
 
 with tab1:
     # --- KPIs ---
@@ -459,3 +489,36 @@ with tab4:
                 },
                 use_container_width=True, hide_index=True
             )
+
+with tab5:
+    st.subheader("⚙️ Cài đặt Hệ thống & Thông báo")
+    st.markdown("Quản lý khóa bảo mật API và kết nối với Bot Telegram. Dữ liệu được lưu an toàn trên máy chủ.")
+    
+    config = load_app_config()
+    current_token = config.get("TELEGRAM_TOKEN", "")
+    current_chat_id = str(config.get("TELEGRAM_CHAT_ID", ""))
+    current_gemini = config.get("GEMINI_API_KEY", "")
+    
+    with st.form("settings_form"):
+        st.markdown("### 📱 Cấu hình Telegram Bot")
+        st.info("Để nhận thông báo gói thầu mới, bạn cần tạo Bot từ @BotFather và lấy Token.")
+        
+        telegram_token = st.text_input("Telegram Bot Token:", value=current_token, type="password", 
+                                       help="Mã Token API lấy từ @BotFather")
+        telegram_chat_id = st.text_input("Telegram Chat ID:", value=current_chat_id, 
+                                         help="Lấy từ @userinfobot (Có thể là ID cá nhân hoặc Group)")
+        
+        st.markdown("### 🧠 Cấu hình Trí tuệ Nhân tạo (Google Gemini)")
+        gemini_api_key = st.text_input("Gemini API Key:", value=current_gemini, type="password",
+                                       help="Lấy từ Google AI Studio")
+        
+        submitted = st.form_submit_button("LƯU CẤU HÌNH", use_container_width=True, type="primary")
+        if submitted:
+            new_config = {
+                "TELEGRAM_TOKEN": telegram_token.strip(),
+                "TELEGRAM_CHAT_ID": telegram_chat_id.strip(),
+                "GEMINI_API_KEY": gemini_api_key.strip()
+            }
+            save_app_config(new_config)
+            st.success("✅ Đã lưu cấu hình thành công! Hãy chạy file test_telegram.py để kiểm tra kết nối.")
+            st.toast("✅ Đã lưu cấu hình!")
