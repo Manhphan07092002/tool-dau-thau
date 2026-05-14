@@ -253,7 +253,10 @@ filtered_df = df[df['Điểm số'] >= min_score]
 
 start_dt = pd.to_datetime(start_d)
 end_dt = pd.to_datetime(end_d) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_dt) & (filtered_df['Ngày_Date'] <= end_dt)]
+filtered_df = filtered_df[
+    filtered_df['Ngày_Date'].isna() | 
+    ((filtered_df['Ngày_Date'] >= start_dt) & (filtered_df['Ngày_Date'] <= end_dt))
+]
 
 if selected_fields:
     filtered_df = filtered_df[filtered_df['Lĩnh vực'].isin(selected_fields)]
