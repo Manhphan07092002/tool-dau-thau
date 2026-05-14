@@ -364,10 +364,11 @@ def export_to_excel(gui_app, auto_send=False):
         'link': 'Link chi tiết', 'diem_phu_hop': 'Điểm số'
     })
 
-    # Lọc danh sách MobiFone (Điểm > 0)
-    df_mobi = df[df['Điểm số'] > 0].copy()
-    df_mobi["Điểm phù hợp"] = df_mobi['Điểm số'].apply(lambda x: "⭐" * int(x))
-    df_mobi = df_mobi.drop(columns=['Điểm số']).sort_values("Điểm phù hợp", ascending=False)
+    # Lọc danh sách MobiFone (Điểm >= 3)
+    df_mobi = df[df['Điểm số'] >= 3].copy()
+    if not df_mobi.empty:
+        df_mobi["Điểm phù hợp"] = df_mobi['Điểm số'].apply(lambda x: "⭐" * int(x))
+        df_mobi = df_mobi.drop(columns=['Điểm số']).sort_values("Điểm phù hợp", ascending=False)
     
     df = df.drop(columns=['Điểm số'])
 
