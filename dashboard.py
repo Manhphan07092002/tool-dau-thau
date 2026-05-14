@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+import re
 from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
@@ -59,6 +60,24 @@ def load_data():
         df['Ngày_Date'] = pd.to_datetime(df['ngay_dang'], format='%d/%m/%Y %H:%M', errors='coerce').dt.date
         # Xóa các dòng rỗng
         df = df.dropna(subset=['ma_tbmt'])
+        
+        # Hàm chuẩn hóa Giá dự toán
+        def parse_price(price_str):
+            if not isinstance(price_str, str) or price_str == "N/A" or price_str == "": return 0
+            clean_str = re.sub(r'[^\d,\.]', '', price_str)
+            if ',' in clean_str and '.' in clean_str:
+                if clean_str.rfind(',') > clean_str.rfind('.'): clean_str = clean_str.replace('.', '').replace(',', '.')
+                else: clean_str = clean_str.replace(',', '')
+            elif '.' in clean_str:
+                if clean_str.count('.') > 1 or len(clean_str) - clean_str.rfind('.') == 4: clean_str = clean_str.replace('.', '')
+            elif ',' in clean_str:
+                if clean_str.count(',') > 1 or len(clean_str) - clean_str.rfind(',') == 4: clean_str = clean_str.replace(',', '')
+                else: clean_str = clean_str.replace(',', '.')
+            try: return float(clean_str)
+            except: return 0
+            
+        df['Giá_Số'] = df['gia_du_toan'].apply(parse_price)
+        
     except Exception as e:
         df = pd.DataFrame()
     conn.close()
@@ -128,7 +147,7 @@ if search_text:
 # ==========================================
 # GIAO DIỆN CHÍNH
 # ==========================================
-tab1, tab2, tab3 = st.tabs(["📊 TỔNG QUAN", "🔍 DỮ LIỆU GÓI THẦU", "🤖 AI TRỢ LÝ"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 TỔNG QUAN", "🔍 DỮ LIỆU GÓI THẦU", "🤖 AI TRỢ LÝ", "🕵️ TÌNH BÁO ĐỐI THỦ"])
 
 with tab1:
     # --- KPIs ---
@@ -248,3 +267,71 @@ with tab3:
                         st.markdown(f"🤖 **AI Nhận xét:**\n> {row_dict['AI_Đánh_giá']}")
                         
                         st.markdown(f"[🔗 Nhấn vào đây để xem Hồ sơ gốc trên Mua sắm công]({row_dict['Link_chi_tiết']})")
+
+with tab4:
+    st.subheader("🕵️ Hồ sơ Năng lực / Phân tích Đối thủ")
+    st.markdown("Nhập tên tổ chức (Công ty đối thủ hoặc Chủ đầu tư) để trích xuất toàn bộ dữ liệu từ kho Data Warehouse nội bộ.")
+    
+    col_search, col_btn = st.columns([8, 2])
+    with col_search:
+        target_name = st.text_input("Tên Tổ chức cần phân tích:", placeholder="VD: Bệnh viện Nhi đồng, VNPT, Mobifone...")
+    
+    if target_name:
+        # Lọc dữ liệu KHÔNG phụ thuộc vào bộ lọc sidebar (lấy toàn bộ DB)
+        comp_df = df[
+            df['Chủ đầu tư'].str.lower().str.contains(target_name.lower(), na=False) |
+            df['Tên gói thầu'].str.lower().str.contains(target_name.lower(), na=False)
+        ]
+        
+        if comp_df.empty:
+            st.warning(f"Không tìm thấy dữ liệu nào liên quan đến '{target_name}' trong Data Warehouse.")
+        else:
+            st.success(f"Đã tìm thấy **{len(comp_df)}** gói thầu liên quan đến '{target_name}'.")
+            
+            # --- Tính KPIs cho Đối thủ ---
+            c1, c2, c3 = st.columns(3)
+            total_packages = len(comp_df)
+            total_budget = comp_df['Giá_Số'].sum()
+            
+            # Định dạng tỷ đồng
+            if total_budget > 1e9: budget_str = f"{total_budget / 1e9:.2f} Tỷ VNĐ"
+            elif total_budget > 1e6: budget_str = f"{total_budget / 1e6:.2f} Triệu VNĐ"
+            else: budget_str = f"{total_budget:,.0f} VNĐ"
+            
+            most_freq_field = comp_df['Lĩnh vực'].mode()[0] if not comp_df['Lĩnh vực'].empty else "N/A"
+            
+            c1.markdown(f'<div class="metric-card" style="border-left-color: #E53E3E;"><div class="metric-title">Số lần xuất hiện</div><div class="metric-value">{total_packages} gói</div></div>', unsafe_allow_html=True)
+            c2.markdown(f'<div class="metric-card" style="border-left-color: #38A169;"><div class="metric-title">Ước tính Ngân sách (Tổng)</div><div class="metric-value">{budget_str}</div></div>', unsafe_allow_html=True)
+            c3.markdown(f'<div class="metric-card" style="border-left-color: #3182CE;"><div class="metric-title">Sở trường / Lĩnh vực chính</div><div class="metric-value" style="font-size: 20px;">{most_freq_field}</div></div>', unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # --- Biểu đồ phân tích đối thủ ---
+            col_chart1, col_chart2 = st.columns(2)
+            
+            with col_chart1:
+                # 1. Radar Chart phân bổ lĩnh vực (Khẩu vị đấu thầu)
+                radar_data = comp_df['Lĩnh vực'].value_counts().reset_index()
+                radar_data.columns = ['Lĩnh vực', 'Số lượng']
+                fig_radar = px.line_polar(radar_data, r='Số lượng', theta='Lĩnh vực', line_close=True,
+                                          title="Mạng nhện Khẩu vị Đấu thầu",
+                                          template="plotly_dark", color_discrete_sequence=['#ED8936'])
+                fig_radar.update_traces(fill='toself')
+                fig_radar.update_layout(margin=dict(l=40, r=40, t=40, b=40))
+                st.plotly_chart(fig_radar, use_container_width=True)
+                
+            with col_chart2:
+                # 2. Biểu đồ hình thức LCNT
+                hinh_thuc_data = comp_df['Hình thức LCNT'].value_counts().reset_index()
+                hinh_thuc_data.columns = ['Hình thức', 'Số lượng']
+                fig_ht = px.pie(hinh_thuc_data, values='Số lượng', names='Hình thức', hole=0.5,
+                                title="Phân bổ Hình thức Đấu thầu", template="plotly_dark",
+                                color_discrete_sequence=px.colors.qualitative.Set3)
+                fig_ht.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+                st.plotly_chart(fig_ht, use_container_width=True)
+                
+            st.subheader("Lịch sử Đấu thầu chi tiết")
+            st.dataframe(
+                comp_df[['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng']],
+                use_container_width=True, hide_index=True
+            )
