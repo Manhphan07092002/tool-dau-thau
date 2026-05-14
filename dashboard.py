@@ -311,7 +311,7 @@ with tab1:
     if potential_bids > 0:
         with st.expander(f"✨ Bấm để xem chi tiết {potential_bids} Gói Tiềm Năng / Trọng Điểm (≥3⭐) ở trên", expanded=False):
             pot_df = filtered_df[filtered_df['Điểm số'] >= 3].sort_values(by='Điểm số', ascending=False)
-            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Đóng thầu', 'Điểm số', 'Link chi tiết']
             st.dataframe(
                 pot_df[display_cols],
                 column_config={
@@ -404,7 +404,7 @@ with tab1:
         if click_df is not None and not click_df.empty:
             st.markdown("---")
             st.subheader(f"👇 Bảng dữ liệu tương tác: {filter_title}")
-            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+            display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Giá dự toán', 'Ngày đăng', 'Đóng thầu', 'Điểm số', 'Link chi tiết']
             st.dataframe(
                 click_df[display_cols],
                 column_config={
@@ -433,7 +433,7 @@ with tab2:
         st.download_button("📥 Tải Xuống CSV", data=csv, file_name="du_lieu_dau_thau.csv", mime="text/csv", use_container_width=True)
     
     # Bảng dữ liệu tương tác
-    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Điểm số', 'Link chi tiết']
+    display_cols = ['Mã TBMT', 'Tên gói thầu', 'Chủ đầu tư', 'Nhóm hàng', 'Lĩnh vực', 'Giá dự toán', 'Ngày đăng', 'Đóng thầu', 'Điểm số', 'Link chi tiết']
     if not filtered_df.empty:
         st.dataframe(
             filtered_df[display_cols],
@@ -475,10 +475,8 @@ with tab3:
                 target_col = col_l if idx % 2 == 0 else col_r
                 
                 with target_col:
-                    stars = "⭐" * int(row._12) # row._12 is Điểm số (index varies, better to use getattr)
-                    # Use index via dictionary to be safe
                     row_dict = row._asdict()
-                    score = row_dict['Điểm_số']
+                    score = row_dict.get('Điểm_số', 0)
                     stars = "⭐" * int(score) if score > 0 else ""
                     
                     with st.expander(f"{stars} [{row_dict['Mã_TBMT']}] - {row_dict['Tên_gói_thầu'][:60]}..."):
