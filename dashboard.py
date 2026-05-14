@@ -56,8 +56,8 @@ def load_data():
     conn = sqlite3.connect("bids.db")
     try:
         df = pd.read_sql_query("SELECT * FROM bids_full", conn)
-        # Parse Ngày đăng to Date object for filtering
-        df['Ngày_Date'] = pd.to_datetime(df['ngay_dang'], format='%d/%m/%Y %H:%M', errors='coerce').dt.date
+        # Parse Ngày đăng to datetime for filtering
+        df['Ngày_Date'] = pd.to_datetime(df['ngay_dang'], format='%d/%m/%Y %H:%M', errors='coerce')
         # Xóa các dòng rỗng
         df = df.dropna(subset=['ma_tbmt'])
         
@@ -109,10 +109,10 @@ st.sidebar.header("🔍 CÔNG CỤ LỌC")
 search_text = st.sidebar.text_input("Tìm kiếm (Mã, Tên, Chủ đầu tư):", placeholder="Ví dụ: Mobifone...")
 
 # 2. Lọc theo Khoảng thời gian
-min_date = df['Ngày_Date'].min()
-max_date = df['Ngày_Date'].max()
-if pd.isna(min_date): min_date = datetime.today().date()
-if pd.isna(max_date): max_date = datetime.today().date()
+min_dt = df['Ngày_Date'].min()
+max_dt = df['Ngày_Date'].max()
+min_date = min_dt.date() if pd.notna(min_dt) else datetime.today().date()
+max_date = max_dt.date() if pd.notna(max_dt) else datetime.today().date()
 
 date_range = st.sidebar.date_input("Thời gian đăng tải:", [min_date, max_date], min_value=min_date, max_value=max_date)
 
@@ -131,7 +131,9 @@ filtered_df = df[df['Điểm số'] >= min_score]
 
 if len(date_range) == 2:
     start_d, end_d = date_range
-    filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_d) & (filtered_df['Ngày_Date'] <= end_d)]
+    start_dt = pd.to_datetime(start_d)
+    end_dt = pd.to_datetime(end_d) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_dt) & (filtered_df['Ngày_Date'] <= end_dt)]
 
 if selected_fields:
     filtered_df = filtered_df[filtered_df['Lĩnh vực'].isin(selected_fields)]
@@ -171,7 +173,7 @@ with tab1:
         with c1:
             # Lưu lượng đăng tải
             st.subheader("Xu hướng Đăng tải")
-            date_counts = filtered_df['Ngày_Date'].value_counts().reset_index()
+            date_counts = filtered_df['Ngày_Date'].dt.date.value_counts().reset_index()
             date_counts.columns = ['Ngày', 'Số lượng']
             date_counts = date_counts.sort_values('Ngày')
             fig_line = px.area(date_counts, x='Ngày', y='Số lượng', template="plotly_dark", 
