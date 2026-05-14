@@ -328,43 +328,45 @@ with tab1:
     
     # --- Biểu đồ ---
     if not filtered_df.empty:
-        c1, c2 = st.columns([6, 4])
+        # TỐI ƯU HÓA: Sử dụng Tabs để không render tất cả biểu đồ cùng lúc gây treo web
+        chart_tab1, chart_tab2, chart_tab3 = st.tabs(["📈 Xu hướng Đăng tải", "🥧 Cơ cấu Lĩnh vực", "🏆 Top Chủ đầu tư"])
         
-        with c1:
-            # Lưu lượng đăng tải
-            st.subheader("Xu hướng Đăng tải")
+        sel_line = None
+        sel_pie = None
+        sel_bar = None
+        
+        with chart_tab1:
+            st.subheader("Xu hướng Đăng tải theo thời gian")
             date_counts = filtered_df['Ngày_Date'].dt.date.value_counts().reset_index()
             date_counts.columns = ['Ngày', 'Số lượng']
             date_counts = date_counts.sort_values('Ngày')
             fig_line = px.area(date_counts, x='Ngày', y='Số lượng', template="plotly_dark", 
                               color_discrete_sequence=['#00C4B5'])
             fig_line.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=350)
-            sel_line = st.plotly_chart(fig_line, use_container_width=True, on_select="rerun")
+            sel_line = st.plotly_chart(fig_line, use_container_width=True, on_select="rerun", key="chart_line")
             
-        with c2:
-            # Phân bổ Lĩnh vực
-            st.subheader("Cơ cấu Lĩnh vực")
+        with chart_tab2:
+            st.subheader("Phân bổ theo Lĩnh vực")
             field_counts = filtered_df['Lĩnh vực'].value_counts().reset_index()
             field_counts.columns = ['Lĩnh vực', 'Số lượng']
             fig_pie = px.pie(field_counts, values='Số lượng', names='Lĩnh vực', hole=0.4, 
                              template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel)
             fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=350)
-            sel_pie = st.plotly_chart(fig_pie, use_container_width=True, on_select="rerun")
+            sel_pie = st.plotly_chart(fig_pie, use_container_width=True, on_select="rerun", key="chart_pie")
             
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Bảng xếp hạng Chủ đầu tư
-        st.subheader("Top 10 Chủ đầu tư Sôi động nhất")
-        investor_counts = filtered_df['Chủ đầu tư'].value_counts().head(10).reset_index()
-        investor_counts.columns = ['Chủ đầu tư', 'Số lượng']
-        investor_counts = investor_counts.sort_values('Số lượng', ascending=True)
-        fig_bar = px.bar(investor_counts, x='Số lượng', y='Chủ đầu tư', orientation='h',
-                         template="plotly_dark", text_auto=True, color_discrete_sequence=['#F6AD55'])
-        fig_bar.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=400)
-        sel_bar = st.plotly_chart(fig_bar, use_container_width=True, on_select="rerun")
+        with chart_tab3:
+            st.subheader("Top 10 Chủ đầu tư Sôi động nhất")
+            investor_counts = filtered_df['Chủ đầu tư'].value_counts().head(10).reset_index()
+            investor_counts.columns = ['Chủ đầu tư', 'Số lượng']
+            investor_counts = investor_counts.sort_values('Số lượng', ascending=True)
+            fig_bar = px.bar(investor_counts, x='Số lượng', y='Chủ đầu tư', orientation='h',
+                             template="plotly_dark", text_auto=True, color_discrete_sequence=['#F6AD55'])
+            fig_bar.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=400)
+            sel_bar = st.plotly_chart(fig_bar, use_container_width=True, on_select="rerun", key="chart_bar")
         
         # --- XỬ LÝ SỰ KIỆN CLICK BIỂU ĐỒ ---
         def get_pt(sel):
+            if not sel: return {}
             try:
                 pts = sel.get("selection", {}).get("points", [])
                 return pts[0] if pts else {}
