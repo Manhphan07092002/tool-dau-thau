@@ -121,12 +121,29 @@ if min_date.year < 2020: min_date = datetime(2020, 1, 1).date()
 if max_date.year > today_date.year + 1: max_date = today_date
 if min_date > max_date: min_date = max_date
 
-date_range = st.sidebar.date_input(
-    "Thời gian đăng tải:", 
-    value=[min_date, max_date], 
-    min_value=datetime(2020, 1, 1).date(), 
-    max_value=today_date + timedelta(days=30)
-)
+# Bộ lọc ngày thông minh: Tách làm 3 tùy chọn
+st.sidebar.markdown("**📅 Khoảng thời gian:**")
+date_preset = st.sidebar.selectbox("Chọn nhanh:", ["Tất cả", "Hôm nay", "7 ngày qua", "30 ngày qua", "Tùy chọn (Từ ngày - Đến ngày)"])
+
+if date_preset == "Tất cả":
+    start_d = min_date
+    end_d = max_date
+elif date_preset == "Hôm nay":
+    start_d = today_date
+    end_d = today_date
+elif date_preset == "7 ngày qua":
+    start_d = today_date - timedelta(days=7)
+    end_d = today_date
+elif date_preset == "30 ngày qua":
+    start_d = today_date - timedelta(days=30)
+    end_d = today_date
+else:
+    # Tùy chọn riêng biệt 2 ô
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
+        start_d = st.date_input("Từ ngày:", value=min_date, min_value=datetime(2020, 1, 1).date(), max_value=today_date + timedelta(days=30))
+    with c2:
+        end_d = st.date_input("Đến ngày:", value=max_date, min_value=datetime(2020, 1, 1).date(), max_value=today_date + timedelta(days=30))
 
 # 3. Lọc theo Điểm số
 min_score = st.sidebar.slider("Độ tiềm năng (Từ bao nhiêu sao):", 0, 5, 0)
@@ -141,11 +158,9 @@ st.sidebar.caption("💡 Mẹo: Nhấn 'R' trên bàn phím để tải lại d�
 # Xử lý lọc Dataframe
 filtered_df = df[df['Điểm số'] >= min_score]
 
-if len(date_range) == 2:
-    start_d, end_d = date_range
-    start_dt = pd.to_datetime(start_d)
-    end_dt = pd.to_datetime(end_d) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-    filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_dt) & (filtered_df['Ngày_Date'] <= end_dt)]
+start_dt = pd.to_datetime(start_d)
+end_dt = pd.to_datetime(end_d) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+filtered_df = filtered_df[(filtered_df['Ngày_Date'] >= start_dt) & (filtered_df['Ngày_Date'] <= end_dt)]
 
 if selected_fields:
     filtered_df = filtered_df[filtered_df['Lĩnh vực'].isin(selected_fields)]
