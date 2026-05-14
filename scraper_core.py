@@ -100,11 +100,12 @@ def score_item(ten, linh_vuc, keywords):
     return min(round(score), 5)
 
 def fetch_bid_details(driver, url, wait):
-    if url == "N/A": return "N/A", "N/A"
+    if url == "N/A": return "N/A", "N/A", "N/A"
     driver.execute_script(f"window.open('{url}', '_blank');")
     driver.switch_to.window(driver.window_handles[1])
     gia_du_toan = "N/A"
     hinh_thuc = "N/A"
+    dong_thau_dt = "N/A"
     try:
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "format-item")))
         page_text = driver.find_element(By.TAG_NAME, "body").text
@@ -113,12 +114,16 @@ def fetch_bid_details(driver, url, wait):
         elif "Giá gói thầu" in page_text:
             gia_du_toan = get_v("Giá gói thầu", page_text)
         hinh_thuc = get_v("Hình thức lựa chọn nhà thầu", page_text)
+        if "Thời điểm đóng thầu" in page_text:
+            dong_thau_dt = get_v("Thời điểm đóng thầu", page_text)
+        elif "Thời điểm bắt đầu chào giá trực tuyến" in page_text:
+            dong_thau_dt = get_v("Thời điểm bắt đầu chào giá trực tuyến", page_text)
     except Exception:
         pass
     finally:
         driver.close()
         driver.switch_to.window(driver.window_handles[0])
-    return gia_du_toan, hinh_thuc
+    return gia_du_toan, hinh_thuc, dong_thau_dt
 
 def get_ai_analysis(api_key, ten, linh_vuc, chu_dau_tu):
     if not api_key: return "Chưa cấu hình AI"
@@ -170,7 +175,7 @@ def run_scraper(gui_app):
         
     LIMIT_PAGES = config.get("LIMIT_PAGES", 200)
     DAYS_BACK = config.get("DAYS_BACK", 30)
-    FETCH_DETAILS = config.get("FETCH_DETAILS", False)
+    FETCH_DETAILS = config.get("FETCH_DETAILS", True)  # Bật mặc định để luôn cào giá và ngày hết hạn
     TG_TOKEN = config.get("TELEGRAM_BOT_TOKEN", "").strip()
     TG_CHAT_ID = config.get("TELEGRAM_CHAT_ID", "").strip()
     GEMINI_KEY = config.get("GEMINI_API_KEY", "").strip()
@@ -275,8 +280,11 @@ def run_scraper(gui_app):
                         if item_score >= 3 and GEMINI_KEY:
                             ai_summary = get_ai_analysis(GEMINI_KEY, ten, linh_vuc, chu_dau_tu)
                         
-                        if FETCH_DETAILS and item_score >= 2:
-                            gia_du_toan, hinh_thuc = fetch_bid_details(driver, link, wait)
+                        if FETCH_DETAILS:
+                            dt_gia, dt_hinh_thuc, dt_dong_thau = fetch_bid_details(driver, link, wait)
+                            if dt_gia != "N/A": gia_du_toan = dt_gia
+                            if dt_hinh_thuc != "N/A": hinh_thuc = dt_hinh_thuc
+                            if dt_dong_thau != "N/A": dong_thau = dt_dong_thau
                             
                         if item_score >= 4 and TG_TOKEN and TG_CHAT_ID:
                             msg = f"🚨 <b>CÓ GÓI THẦU MỚI ({item_score}⭐)</b>\n\n"

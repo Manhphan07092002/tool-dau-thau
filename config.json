@@ -1,0 +1,120 @@
+{
+    "LIMIT_PAGES": 50,
+    "DAYS_BACK": 15,
+    "PAGE_WAIT": 6,
+    "FETCH_DETAILS": true,
+    "KEYWORD_GROUPS": {
+        "NHÓM 1: Viễn thông & Mạng lưới": [
+            "viễn thông",
+            "BTS",
+            "trạm phát sóng",
+            "truyền dẫn",
+            "cáp quang",
+            "hạ tầng mạng",
+            "hạ tầng số",
+            "chuyển đổi số",
+            "dịch vụ số",
+            "an toàn thông tin",
+            "bảo mật",
+            "cloud",
+            "data center",
+            "trung tâm dữ liệu",
+            "internet",
+            "wifi",
+            "sim",
+            "CNTT",
+            "hội nghị trực tuyến",
+            "camera giám sát"
+        ],
+        "NHÓM 2: Thiết bị mạng & Switch": [
+            "switch",
+            "router",
+            "access point",
+            "module SFP",
+            "media converter",
+            "ODF",
+            "măng xông",
+            "măng sông",
+            "dây nhảy",
+            "dây nối quang",
+            "cáp mạng",
+            "CAT5",
+            "CAT6",
+            "tủ rack",
+            "rack 19",
+            "thiết bị mạng",
+            "thiết bị L2",
+            "thiết bị L3",
+            "CPE",
+            "SOHO",
+            "VoIP",
+            "E1"
+        ],
+        "NHÓM 3: Hạ tầng BTS & Nguồn điện": [
+            "tủ nguồn",
+            "ắc quy",
+            "acquy",
+            "UPS",
+            "nguồn điện viễn thông",
+            "chống sét",
+            "tiếp địa",
+            "máy phát điện",
+            "biến áp",
+            "cột bê tông",
+            "cột ăng ten",
+            "cột viễn thông",
+            "cáp điện",
+            "tủ outdoor",
+            "tủ indoor"
+        ],
+        "NHÓM 4: Cáp & Phụ kiện hạ tầng": [
+            "cáp quang",
+            "cáp FO",
+            "cáp treo",
+            "dây thuê bao quang",
+            "ống nhựa PVC",
+            "ống HDPE",
+            "ống thép mạ kẽm",
+            "băng báo hiệu",
+            "phụ kiện quang",
+            "fast connector",
+            "đầu nối quang"
+        ],
+        "NHÓM 5: Thiết bị đo kiểm BTS & Quang": [
+            "máy đo OTDR",
+            "OTDR",
+            "máy đo sóng",
+            "máy TEM",
+            "đo vùng phủ sóng",
+            "đo nội trở",
+            "bút soi quang",
+            "máy thu công suất"
+        ],
+        "NHÓM 6: Hệ thống CNTT & Server": [
+            "máy chủ",
+            "server",
+            "kiosk",
+            "màn hình ghép",
+            "màn hình LED",
+            "hệ thống IOC",
+            "máy quét CCCD",
+            "máy quét mã vạch",
+            "phần mềm",
+            "lưu trữ"
+        ],
+        "NHÓM 7: Năng lượng mặt trời": [
+            "pin năng lượng mặt trời",
+            "solar",
+            "inverter solar",
+            "tấm pin mặt trời"
+        ],
+        "NHÓM 8: Điều hòa & Cơ điện hạ tầng": [
+            "máy điều hoà",
+            "điều hòa không khí",
+            "điều hòa"
+        ]
+    },
+    "SELECTED_GROUPS": [
+        "NHÓM 1: Viễn thông & Mạng lưới"
+    ]
+}
