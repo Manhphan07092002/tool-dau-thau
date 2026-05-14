@@ -48,6 +48,15 @@ def start_scheduler():
     except Exception as e:
         app.log(f"⚠️ Không thể tự động khởi động Web Dashboard: {e}")
         
+    # Start Telegram Chatbot in the background
+    app.log("🤖 Đang khởi động Telegram Chatbot...")
+    try:
+        subprocess.Popen(["python3", "telegram_bot.py"], 
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        app.log("✅ Chatbot đã sẵn sàng nhận lệnh từ Telegram!")
+    except Exception as e:
+        app.log(f"⚠️ Không thể tự động khởi động Chatbot: {e}")
+        
     last_run_date = None
     
     while True:
